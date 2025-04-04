@@ -515,3 +515,14 @@ if settings.ENABLE_NOVITA:
             ),
         ),
     )
+
+if settings.ENABLE_LOCAL_LLM:
+    LLMConfigRegistry.register_config(
+        "gemma3:4b",
+        LLMConfig(
+            settings.LOCAL_LLM_URL,
+            [],
+            supports_vision=False,
+            add_assistant_prefix=False,
+        ),
+    )

@@ -142,6 +142,10 @@ class Settings(BaseSettings):
     NOVITA_API_KEY: str | None = None
     NOVITA_API_VERSION: str = "v3"
 
+    # LOCAL LLM
+    ENABLE_LOCAL_LLM: bool = False
+    LOCAL_LLM_URL: str | None = None
+
     # TOTP Settings
     TOTP_LIFESPAN_MINUTES: int = 10
     VERIFICATION_CODE_INITIAL_WAIT_TIME_SECS: int = 40

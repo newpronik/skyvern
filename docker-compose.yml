@@ -19,7 +19,9 @@ services:
       retries: 5
 
   skyvern:
-    image: public.ecr.aws/skyvern/skyvern:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: on-failure
     # comment out if you want to externally call skyvern API
     ports:
@@ -33,12 +35,14 @@ services:
       # Uncomment the following two lines if you want to connect to any local changes
       # - ./skyvern:/app/skyvern
       # - ./alembic:/app/alembic
-    environment:
-      - DATABASE_STRING=postgresql+psycopg://skyvern:skyvern@postgres:5432/skyvern
-      - BROWSER_TYPE=chromium-headful
-      - ENABLE_OPENAI=true
-      - LLM_KEY=OPENAI_GPT4O
-      - OPENAI_API_KEY=<your_openai_key>
+    env_file:
+      - .env
+    # environment:
+    #  - DATABASE_STRING=postgresql+psycopg://skyvern:skyvern@postgres:5432/skyvern
+    #  - BROWSER_TYPE=chromium-headful
+    #   - ENABLE_OPENAI=true
+    #   - LLM_KEY=OPENAI_GPT4O
+    #   - OPENAI_API_KEY=<your_openai_key>
       # If you want to use other LLM provider, like azure and anthropic:
       # - ENABLE_ANTHROPIC=true
       # - LLM_KEY=ANTHROPIC_CLAUDE3.5_SONNET
@@ -82,7 +86,9 @@ services:
       retries: 5
 
   skyvern-ui:
-    image: public.ecr.aws/skyvern/skyvern-ui:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
     restart: on-failure
     ports:
       - 8080:8080

@@ -145,6 +145,8 @@ class Settings(BaseSettings):
     # LOCAL LLM
     ENABLE_LOCAL_LLM: bool = False
     LOCAL_LLM_URL: str | None = None
+    LOCAL_LLM_MODEL: str | None = None
+    LOCAL_SUPPORTS_VISION: bool = False
 
     # TOTP Settings
     TOTP_LIFESPAN_MINUTES: int = 10

@@ -518,11 +518,14 @@ if settings.ENABLE_NOVITA:
 
 if settings.ENABLE_LOCAL_LLM:
     LLMConfigRegistry.register_config(
-        "gemma3:4b",
+        "OLLAMA",
         LLMConfig(
-            settings.LOCAL_LLM_URL,
+            settings.LOCAL_LLM_MODEL,
             [],
-            supports_vision=False,
+            supports_vision=settings.LOCAL_SUPPORTS_VISION,
             add_assistant_prefix=False,
+            litellm_params=LiteLLMParams(
+                api_base=settings.LOCAL_LLM_URL,
+            ),
         ),
     )

@@ -53,8 +53,9 @@ from skyvern.forge.sdk.workflow.models.yaml import (
     WorkflowDefinitionYAML,
 )
 from skyvern.schemas.runs import ProxyLocation, RunType
+from skyvern.utils.prompt_engine import load_prompt_with_elements
 from skyvern.webeye.browser_factory import BrowserState
-from skyvern.webeye.scraper.scraper import ElementTreeFormat, ScrapedPage, scrape_website
+from skyvern.webeye.scraper.scraper import ScrapedPage, scrape_website
 from skyvern.webeye.utils.page import SkyvernFrame
 
 LOG = structlog.get_logger()
@@ -452,7 +453,6 @@ async def run_task_v2_helper(
                     app.AGENT_FUNCTION.cleanup_element_tree_factory(),
                     scrape_exclude=app.scrape_exclude,
                 )
-                element_tree_in_prompt: str = scraped_page.build_element_tree(ElementTreeFormat.HTML)
                 if page is None:
                     page = await browser_state.get_working_page()
             except Exception:
@@ -462,10 +462,11 @@ async def run_task_v2_helper(
                 continue
             current_url = current_url if current_url else str(await SkyvernFrame.get_url(frame=page) if page else url)
 
-            task_v2_prompt = prompt_engine.load_prompt(
+            task_v2_prompt = load_prompt_with_elements(
+                scraped_page,
+                prompt_engine,
                 "task_v2",
                 current_url=current_url,
-                elements=element_tree_in_prompt,
                 user_goal=user_prompt,
                 task_history=task_history,
                 local_datetime=datetime.now(context.tz_info).isoformat(),
@@ -543,7 +544,7 @@ async def run_task_v2_helper(
                     workflow_permanent_id=workflow.workflow_permanent_id,
                     workflow_run_id=workflow_run_id,
                     current_url=current_url,
-                    element_tree_in_prompt=element_tree_in_prompt,
+                    scraped_page=scraped_page,
                     data_extraction_goal=plan,
                     task_history=task_history,
                 )
@@ -1082,20 +1083,22 @@ async def _generate_extraction_task(
     workflow_permanent_id: str,
     workflow_run_id: str,
     current_url: str,
-    element_tree_in_prompt: str,
+    scraped_page: ScrapedPage,
     data_extraction_goal: str,
     task_history: list[dict] | None = None,
 ) -> tuple[ExtractionBlock, list[BLOCK_YAML_TYPES], list[PARAMETER_YAML_TYPES]]:
     LOG.info("Generating extraction task", data_extraction_goal=data_extraction_goal, current_url=current_url)
     # extract the data
     context = skyvern_context.ensure_context()
-    generate_extraction_task_prompt = prompt_engine.load_prompt(
-        "task_v2_generate_extraction_task",
+    generate_extraction_task_prompt = load_prompt_with_elements(
+        scraped_page=scraped_page,
+        prompt_engine=prompt_engine,
+        template_name="task_v2_generate_extraction_task",
         current_url=current_url,
-        elements=element_tree_in_prompt,
         data_extraction_goal=data_extraction_goal,
         local_datetime=datetime.now(context.tz_info).isoformat(),
     )
+
     generate_extraction_task_response = await app.LLM_API_HANDLER(
         generate_extraction_task_prompt,
         task_v2=task_v2,
@@ -1313,6 +1316,23 @@ async def mark_task_v2_as_terminated(
     )
     if workflow_run_id:
         await app.WORKFLOW_SERVICE.mark_workflow_run_as_terminated(workflow_run_id, failure_reason)
+    await send_task_v2_webhook(task_v2)
+    return task_v2
+
+
+async def mark_task_v2_as_timed_out(
+    task_v2_id: str,
+    workflow_run_id: str | None = None,
+    organization_id: str | None = None,
+    failure_reason: str | None = None,
+) -> TaskV2:
+    task_v2 = await app.DATABASE.update_task_v2(
+        task_v2_id,
+        organization_id=organization_id,
+        status=TaskV2Status.timed_out,
+    )
+    if workflow_run_id:
+        await app.WORKFLOW_SERVICE.mark_workflow_run_as_timed_out(workflow_run_id, failure_reason)
     await send_task_v2_webhook(task_v2)
     return task_v2
 
